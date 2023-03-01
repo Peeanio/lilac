@@ -1,0 +1,14 @@
+[Unit]
+Description=xonotic server
+After=network.target
+
+[Service]
+User=xonotic
+WorkingDirectory=/home/xonotic
+ExecStart={{ xonotic_path }}/server_linux.sh
+Restart=on-failure
+RestartSec=20
+
+[Install]
+WantedBy=multi-user.target
+Alias=xonotic.service

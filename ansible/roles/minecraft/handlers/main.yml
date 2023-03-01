@@ -1,0 +1,9 @@
+---
+     - name: restart minecraft service message
+       shell: sudo -u minecraft screen -S minecraft -X eval 'stuff "/say Unscheduled server restart in 15 seconds!"\015' ; sleep 15
+
+     - name: restart minecraft service
+       systemd:
+         name: minecraft
+         state: restarted
+

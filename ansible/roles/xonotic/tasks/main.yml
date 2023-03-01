@@ -1,0 +1,86 @@
+---
+  - name: xonotic packages
+    apt:
+     pkg: 
+     - ufw
+     - unzip
+     - curl
+
+  - name: xonotic group
+    group:
+      name: xonotic
+      state: present
+  
+  - name: xonotic user
+    user:
+     name: xonotic
+     group: xonotic
+     state: present
+     create_home: true
+     shell: /bin/bash
+
+  - name: xonotic checksum
+    shell: "curl https://dl.xonotic.org/xonotic-{{ xonotic_ver }}.sha512 | grep 'xonotic-{{ xonotic_ver }}.zip' | awk '{ print $1 }'"
+    register: checksum
+
+  - debug: msg="{{ checksum.stdout }}"
+ 
+  - name: zip download
+    get_url:
+      url: "https://dl.unvanquished.net/share/xonotic/release/xonotic-{{ xonotic_ver }}.zip"
+      dest: "/home/xonotic/xonotic-{{ xonotic_ver}}.zip"
+      checksum: "sha512:{{ checksum.stdout }}"
+    register: new_zip
+
+  - name: xonotic directory path
+    stat: path="{{ xonotic_path }}"
+    register: xonotic_exists
+
+  - name: zip extract
+    unarchive: 
+     src: "/home/xonotic/xonotic-{{ xonotic_ver }}.zip"
+     dest: /home/xonotic
+     owner: xonotic
+     group: xonotic
+     remote_src: true
+    when: new_zip.changed or not xonotic_exists.stat.exists 
+
+  - name: xonotic server launcher
+    copy:
+     src: "{{ xonotic_path }}/server/server_linux.sh"
+     dest: "{{ xonotic_path }}/server_linux.sh"
+     remote_src: true
+     owner: xonotic
+     group: xonotic
+     mode: '0744'
+
+  - name: xonotic server date directory
+    file:
+      path: /home/xonotic/.xonotic/data
+      owner: xonotic
+      group: xonotic
+      state: directory
+
+  - name: server.cfg
+    template:
+      src: templates/server.cfg.j2
+      dest: /home/xonotic/.xonotic/data/server.cfg
+
+  - name: service file
+    template: 
+      src: templates/xonotic.service.j2
+      dest: /lib/systemd/system/xonotic.service
+      owner: root
+
+  - name: xonotic service
+    systemd:
+      name: xonotic
+      state: started
+      enabled: true
+      daemon_reload: true
+
+  - name: xonotic port
+    ufw:
+     rule: allow
+     to_port: 26000
+     proto: udp

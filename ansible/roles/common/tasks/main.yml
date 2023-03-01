@@ -1,0 +1,32 @@
+---
+   - name: packages
+     apt:
+       pkg: 
+       - sudo
+       - vim 
+       - ufw  
+       - fail2ban
+       state: present
+       state: latest
+       update_cache: yes
+
+   - name: ufw allow ssh
+     ufw:
+       rule: allow
+       name: OpenSSH
+
+   - name: ufw default deny
+     ufw:
+       default: deny
+       state: enabled
+
+   - name: fail2ban ssh jail
+     template:
+       src: templates/fail2ban.ssh.conf.j2
+       dest: /etc/fail2ban/jail.d/sshd.conf
+   
+   - name: fail2ban service
+     systemd:
+       name: fail2ban
+       state: started
+       enabled: true

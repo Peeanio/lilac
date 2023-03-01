@@ -1,0 +1,111 @@
+---
+   - name: packages
+     apt:
+       pkg: 
+       - sudo
+       - vim 
+       - ufw  
+       - screen
+       - openjdk-17-jdk-headless
+       state: present
+       state: latest
+       update_cache: yes
+
+   - name: minecraft group
+     group:
+       name: minecraft
+       state: present
+       
+   - name: minecraft user
+     user:
+       name: minecraft
+       group: minecraft
+       state: present
+       create_home: true
+       shell: /bin/bash
+
+   - name: jar file checksum gather
+     shell: "sha256sum {{ minecraft_jar_path }}"
+     register: minecraft_jar_checksum
+     ignore_errors: true
+
+   - name: minecraft jar temp file
+     get_url:
+       url: "https://piston-data.mojang.com/v1/objects/c9df48efed58511cdd0213c56b9013a7b5c9ac1f/server.jar"
+       dest: "{{ minecraft_tmp_jar_path }}"
+
+   - name: minecraft jar file checksum
+     shell: "sha256sum {{ minecraft_tmp_jar_path }}"
+     register: minecraft_tmp_jar_checksum
+     ignore_errors: true
+
+   - name: link jar file to latest
+     file:
+       src: "{{ minecraft_tmp_jar_path }}"
+       dest: "{{ minecraft_jar_path }}"
+       owner: minecraft
+       group: minecraft
+       state: link
+     when: minecraft_tmp_jar_checksum.stdout != minecraft_jar_checksum.stdout
+
+   - name: minecraft eula
+     template:
+       src: templates/minecraft.eula.j2
+       dest: /home/minecraft/eula.txt
+       owner: minecraft
+       group: minecraft
+   
+   - name: minecraft config file
+     template:
+       src: templates/minecraft.conf.j2
+       dest: /home/minecraft/server.properties
+       owner: minecraft
+       group: minecraft
+#     notify:
+#     - restart minecraft service message
+#     - restart minecraft service
+
+   - name: minecraft service template
+     template:
+       src: templates/minecraft.service.j2
+       dest: /lib/systemd/system/minecraft.service
+       owner: root
+     notify:
+     - restart minecraft service message
+     - restart minecraft service
+
+   - name: minecraft crontab file
+     template:
+       src: templates/minecraft.crontab.j2
+       dest: "{{ minecraft_cron_path }}"
+       owner: minecraft
+       group: minecraft
+     register: crontab
+
+   - name: minecraft crontab
+     command: "crontab -u minecraft {{ minecraft_cron_path }}"
+     when: crontab.changed
+
+   - name: root crontab file
+     template:
+       src: templates/root.crontab.j2
+       dest: /root/crontab
+       owner: root
+       group: root
+     register: root_crontab
+
+   - name: root crontab
+     command: "crontab -u root /root/crontab"
+     when: root_crontab.changed
+
+   - name: minecraft service
+     systemd:
+       name: minecraft
+       state: started
+       enabled: true
+       daemon_reload: true
+
+   - name: ufw allow minecraft
+     ufw:
+       rule: allow
+       to_port: 25565
