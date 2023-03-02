@@ -5,4 +5,4 @@
      minecraft_min_ram: "2"
      minecraft_max_ram: "4"
      minecraft_cron_path: "/home/minecraft/minecraft.crontab"
-
+     minecraft_port: "25565"
