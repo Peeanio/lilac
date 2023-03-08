@@ -1,0 +1,63 @@
+---
+  - name: dependency repos
+    apt_repository:
+      repo: "{{ item }}"
+      state: present
+    with_items: "{{ non_free_repos }}"
+    
+  - name: dpkg 32bit arch
+    command: dpkg --add-architecture i386
+
+  - name: steamcmd debconf seen
+    debconf:
+      name: "steamcmd"
+      question: "steam/license"
+      vtype: "seen"
+      value: "true"
+ 
+  - name: steamcmd debconf selection
+    debconf:
+      name: "steamcmd"
+      question: "steam/question"
+      value: "I AGREE"
+      vtype: "select"
+
+  - name: packages
+    apt:
+      pkg:
+      - software-properties-common
+      - lib32gcc-s1 
+      - steamcmd
+      state: latest
+      update_cache: yes
+ 
+  - name: steam group
+    group:
+      name: steam
+      state: present
+
+  - name: steam user
+    user:
+      name: steam
+      group: steam
+      create_home: true
+      shell: /bin/bash
+
+  - name: download harshdoorstop
+    command: /usr/games/steamcmd +login anonymous +app_update 950900 +quit
+    become: yes
+    become_user: steam
+
+  - name: harshdoorstop config file
+    template:
+      src: templates/harshdoorstop.cfg.j2
+      dest: /home/steam/harshdoorstop.cfg
+      owner: steam
+      group: steam
+
+  - name: harshdoorstop ports
+    ufw:
+      rule: allow
+      to_port: "{{ item }}"
+    with_items: "{{ harshdoorstop_ports }}"
+
