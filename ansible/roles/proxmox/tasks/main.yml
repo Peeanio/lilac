@@ -1,0 +1,77 @@
+---
+  tasks:
+  - name: remove enterprise repo
+    apt_repository:
+        repo: "deb https://enterprise.proxmox.com/debian/pve {{ ansible_distribution_release }} pve-enterprise"
+        state: absent
+
+  - name: add proxmox repo key
+    apt_key:
+      url: "https://enterprise.proxmox.com/debian/proxmox-release-{{ ansible_distribution_release }}.gpg"
+      state: present
+
+  - name: add community repo
+    apt_repository:
+        repo: deb http://download.proxmox.com/debian/pve {{ ansible_distribution_release }} pve-no-subscription
+        state: present
+
+  - name: check for subscription notice
+    command: grep -Fxq "No valid sub" /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+    ignore_errors: yes
+    register: subscriptionpromptcheck
+
+  - name: remove subscription notice
+    command: |
+      sed -Ezi.bak "s/(Ext.Msg.show\(\{\s+title: gettext\('No valid sub)/void\(\{ \/\/\1/g" /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+    when: subscriptionpromptcheck.stdout.find('No valid sub') != -1
+    notify: proxy restart
+
+  - name: dump pve roles
+    command: pveum role list --output=json
+    register: roles
+
+  - name: set role_query
+    set_fact: role_query="{{ roles.stdout | from_json | json_query('[*].roleid')  }}"
+      #| json_query('[?roleid==`{{ proxmox_role_name }}`]') }}"
+
+  - name: dump role_query
+    debug: msg={{ role_query }}
+
+  - name: TerraformProv role exists
+    command: 'pveum role add {{ proxmox_role_name }} -privs "{{ proxmox_role_privs }}"'
+    when: 'role_query is not search("{{ proxmox_role_name }}") and not ansible_check_mode'
+    register: role_create
+
+  - name: TerraformProv role privs match
+    command: 'pveum role modify {{ proxmox_role_name }} -privs "{{ proxmox_role_privs }}"'
+    when: 'role_query is not search("{{ proxmox_role_privs }}") and not ansible_check_mode and role_create is not defined'
+
+  - name: terraformprov user query
+    command: pveum user list --output=json
+    register: users
+
+  - name: set user_query
+    set_fact: user_query="{{ users.stdout | from_json | json_query('[*].userid') }}"
+
+  - name: dump user_query
+    debug: msg={{ user_query }}
+
+  - name: terraform user exists
+    command: "pveum user add {{ proxmox_user_name }}{{ proxmox_user_domain }} --password {{ proxmox_user_password }}"
+    when: 'user_query is not search("{{ proxmox_user_name }}") and not ansible_check_mode'
+    no_log: true
+
+  - name: terraform acl query
+    command: "pveum acl list --output=json"
+    register: acl
+
+  - name: terraform acl query
+    set_fact: acl_query="{{ acl.stdout | from_json | json_query('[*].ugid') }}"
+    check_mode: no
+
+  - name: dump acl_query
+    debug: msg={{ acl_query }}
+
+  - name: terraform acl exists
+    command: "pveum acl modify / -user {{ proxmox_user_name }}{{ proxmox_user_domain}} -role {{ proxmox_role_name }}"
+    when: 'acl_query is not search("{{ proxmox_user_name }}") and not ansible_check_mode'

@@ -1,0 +1,7 @@
+---
+  handlers:
+    - name: proxy restart
+      systemd:
+        name: pveproxy
+        state: restarted
+
