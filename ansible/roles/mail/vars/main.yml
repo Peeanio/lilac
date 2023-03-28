@@ -1,0 +1,4 @@
+---
+   subdom: "mail"
+   domain: "example.lan"
+   maildomain: "{{ subdom }}.{{ domain }}"

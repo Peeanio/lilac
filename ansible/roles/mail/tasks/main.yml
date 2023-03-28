@@ -1,0 +1,223 @@
+---
+   - name: wait for dpkg lock
+     shell: while sudo fuser /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 5; done;
+
+   - name: wait dpkg frontend lock
+     shell: while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done;
+
+   - name: wait for apt lock
+     shell: while sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 5; done;
+
+   - name: packages
+     apt: 
+       pkg:
+         - postfix
+         - postfix-pcre
+         - dovecot-imapd
+         - dovecot-sieve
+         - opendkim
+         - opendkim-tools
+         - spamassassin
+         - spamc
+         - net-tools
+         - fail2ban
+         - python3-certbot
+         - ufw
+       state: latest
+       update_cache: true
+  
+   - name: directory for cert
+     file:
+       path: "/etc/letsencrypt/live/{{ maildomain }}"
+       state: directory
+
+   - name: verify the lets encrypt certificate
+     community.crypto.x509_certificate_info:
+       path: "/etc/letsencrypt/archive/{{ maildomain }}/cert1.pem"
+     ignore_errors: true
+     register: ssl_check
+
+   - name: ufw port 80 for lets
+     ufw:
+      to_port: 80
+      rule: allow 
+
+   - name: get certificate
+     shell: "certbot -d {{ maildomain }} certonly --standalone --preferred-challenge http --register-unsafely-without-email --agree-tos"
+     vars: 
+       ansible_command_timeout: 300
+     notify: 
+       - "restart postfix"
+       - "restart dovecot"
+     when: ssl_check.stat.expired is false or ssl_check.failed is true
+
+   - name: postfix main template
+     template:
+       src: templates/postfix_main.cf.j2
+       dest: /etc/postfix/main.cf
+     notify: "restart postfix"
+
+   - name: postfix header checks
+     template:
+       src: templates/postfix_header_checks.j2
+       dest: /etc/postfix/header_checks
+     notify: "restart postfix"
+
+   - name: postfix master template
+     template:
+       src: templates/postfix_master.cf.j2
+       dest: /etc/postfix/master.cf
+     notify: "restart postfix"
+
+   - name: dovecot template
+     template: 
+       src: templates/dovecot_dovecot.conf.j2
+       dest: /etc/dovecot/dovecot.conf
+     notify: "restart dovecot"
+
+   - name: vmail user
+     user:
+       name: vmail
+
+   - name: dovecot sieve dir
+     file:
+       path: /var/lib/dovecot/sieve
+       state: directory
+       owner: vmail
+       group: vmail
+       recurse: yes
+
+   - name: sieve template
+     template:
+       src: templates/default.sieve.j2
+       dest: /var/lib/dovecot/sieve/default.sieve
+       owner: vmail
+       group: vmail
+     notify: "sievec compile config"
+
+   - name: Flush Handlers
+     meta: flush_handlers
+
+   - name: pam dovecot config
+     template:
+       src: templates/pamd_dovecot.j2
+       dest: /etc/pam.d/dovecot
+     notify: "restart dovecot"
+
+   - name: opendkim key check
+     stat:
+       path: "/etc/postfix/dkim/{{ subdom }}.private"
+     register: dkim_key
+   #  ignore_errors: true
+
+   - name: opendkim key create 
+     shell: "opendkim-genkey -D '/etc/postfix/dkim/' -d '{{ domain }}' -s '{{ subdom }}'"
+     when: dkim_key.stat.exists is false
+     notify: "restart opendkim"
+    
+   - name: dkim keytable template
+     template:
+       src: templates/dkim_keytable.j2
+       dest: /etc/postfix/dkim/keytable
+       group: opendkim
+     notify: "restart opendkim"
+
+   - name: dkim signingtable template
+     template:
+       src: templates/dkim_signingtable.j2
+       dest: /etc/postfix/dkim/signingtable
+       group: opendkim
+     notify: "restart opendkim"
+
+   - name: dkim trustedhosts template
+     template:
+       src: templates/dkim_trustedhosts.j2
+       dest: /etc/postfix/dkim/trustedhosts
+       group: opendkim
+     notify: "restart opendkim"
+
+   - name: dkim permissions
+     file: 
+       path: "/etc/postfix/dkim/"
+       state: directory
+       group: opendkim
+       recurse: true
+
+   - name: opendkim template
+     template:
+       src: templates/opendkim.conf.j2
+       dest: /etc/opendkim.conf
+     notify: "restart opendkim"
+
+   - name: fail2ban jail template
+     template:
+       src: templates/email.local.j2
+       dest: /etc/fail2ban/jail.d/email.local
+     notify: "restart fail2ban"
+
+   - name: Flush Handlers
+     meta: flush_handlers
+
+   - name: enable services
+     systemd:
+       name: "{{ item }}"
+       state: started
+       enabled: true
+     with_items:
+       - spamassassin
+       - opendkim
+       - dovecot
+       - postfix
+       - fail2ban
+
+   - name: dmarc user
+     user:
+       name: dmarc
+       create_home: true
+       groups: mail
+       append: true
+      
+   - name: dmarc clean cron
+     template:
+       src: templates/dmarc_clean.j2
+       dest: /etc/cron.weekly/dmarc-clean
+       mode: '0755'
+
+   - name: trim dkim pub key
+     shell: 'sed "s/k=rsa.* \"p=/k=rsa; p=/;s/\"\s*\"//;s/\"\s*).*//" /etc/postfix/dkim/{{ subdom }}.txt | grep -o "p=.*" | sed "s/.$//"'
+     register: dkim_pub
+
+   - name: dkim pub key of fs
+     template:
+       src: templates/dkim_pub.j2 
+       owner: opendkim
+       group: opendkim
+       dest: "/etc/postfix/dkim/{{ subdom }}_pub.txt"
+
+   - name: email firewall
+     ufw:
+       to_port: "{{ item }}"
+       rule: allow
+     with_items:
+       - 25
+       - 143
+       - 465
+       - 587
+       - 783
+       - 993
+
+   - name: dkim dns entry
+     debug: 
+       msg: "{{ subdom }}._domainkey.{{ domain }}   TXT v=DKIM1; k=rsa; {{ dkim_pub.stdout }}"
+
+   - name: dmarc dns entry
+     debug:
+       msg: "_dmarc.{{ domain }}    TXT v=DMARC1; p=reject; rua=mailto:dmarc@{{ domain }}; fo=1"
+
+   - name: spf dns entry
+     debug:
+       msg: "{{domain}}     TXT v=spf1 mx a:{{ maildomain }} -all"
+
+   - name: mx dns entry 
+     debug:
+       msg: "{{domain}} MX  10    {{ maildomain }}    300"

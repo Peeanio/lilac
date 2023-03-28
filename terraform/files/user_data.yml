@@ -1,0 +1,14 @@
+#cloud-config
+
+users:
+  - name: kryten
+    groups: sudo, ssh
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    ssh-authorized-keys: 
+      - ${init_ssh_public_key}
+package_update: false
+package_upgrade: false
+packages:
+  - sudo
+ssh_pwauth: false

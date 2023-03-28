@@ -1,4 +1,10 @@
 ---
+   - name: wait for dpkg lock
+     shell: while fuser /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 5; done;
+
+   - name: wait for apt lock
+     shell: while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 5; done;
+
    - name: packages
      apt:
        pkg: 

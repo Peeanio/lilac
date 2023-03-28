@@ -1,0 +1,23 @@
+---
+  - name: sievec compile config
+    shell: "sievec /var/lib/dovecot/sieve/default.sieve"
+
+  - name: restart postfix
+    systemd:
+      name: postfix
+      state: restarted
+
+  - name: restart opendkim
+    systemd:
+      name: opendkim
+      state: restarted
+
+  - name: restart dovecot
+    systemd:
+      name: dovecot
+      state: restarted
+
+  - name: restart fail2ban
+    systemd:
+      name: fail2ban
+      state: restarted
