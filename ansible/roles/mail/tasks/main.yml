@@ -104,6 +104,12 @@
        dest: /etc/pam.d/dovecot
      notify: "restart dovecot"
 
+   - name: postfix dkim directory
+     file:
+       path: /etc/postfix/dkim
+       state: directory
+       group: opendkim
+
    - name: opendkim key check
      stat:
        path: "/etc/postfix/dkim/{{ subdom }}.private"

@@ -213,6 +213,7 @@ resource "digitalocean_project_resources" "domain_project_resources" {
   project = digitalocean_project.domain_project.id
   resources = [
    digitalocean_domain.root_domain.urn,
+   digitalocean_droplet.domain_mail_droplet,
   ] 
 }
 
