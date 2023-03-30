@@ -14,7 +14,7 @@ Terraform allows for rapid and precise creation of infrastructure declaratively,
 
 ## Automated Installs
 
-Automatically install operatins systems to a configured known state allows for a determined infrastructure base that can be as hardened or precise as one needs it to be, but most importantly it is the state the operator wants it to be. Whether it is Debian preseed, cloud-init, or Windows XML, the configurations and how to implement them are contained within.
+Automatically install operating systems to a configured known state allows for a determined infrastructure base that can be as hardened or precise as one needs it to be, but most importantly it is the state the operator wants it to be. Whether it is Debian preseed, cloud-init, or Windows XML, the configurations and how to implement them are contained within.
 
 ## Network Designs
 
