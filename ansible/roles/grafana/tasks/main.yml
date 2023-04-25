@@ -24,7 +24,7 @@
 
   - name: grafana config
     template:
-      src: tempaltes/grafana.ini.j2
+      src: templates/grafana.ini.j2
       dest: /usr/local/etc/grafana/grafana.ini
     notify:
       - restart grafana server
