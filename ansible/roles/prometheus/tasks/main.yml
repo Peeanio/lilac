@@ -1,0 +1,35 @@
+---
+  - name: prometheus packages
+    apt:
+      pkgs:
+        - wget
+        - curl
+
+  - name: prometheus group
+    group:
+      name: prometheus
+      state: present
+      system: true
+
+  - name: prometheus user
+    user:
+      name: prometheus
+      shell: /sbin/nologin
+      system: true
+      groups: prometheus
+
+  - name: prometheus directory
+    file:
+      path: /var/lib/prometheus
+      owner: prometheus
+      group: prometheus
+      state: directory
+
+  - name: prometheus file
+    unarchive: 
+      src: "https://github.com/prometheus/prometheus/releases/download/{{ prometheus_version}}/prometheus-{{ prometheus_version }}.freebsd-amd64.tar.gz"
+      dest: /var/lib/prometheus
+      remote_src: yes
+      
+
+  - name: copy binaries

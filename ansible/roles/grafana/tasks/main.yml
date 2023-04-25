@@ -1,0 +1,37 @@
+---
+  - name: grafana packages
+    apt:
+     pkg: 
+     - apt-transport-https
+     - software-properties-common
+     - wget
+
+  - name: grafana key
+    get_url:
+      url: https://apt.grafana.com/gpg.key
+      dest: /usr/share/keyrings/grafana.key
+
+  - name: grafana repo
+    apt_repository:
+      repo: deb [signed-by=/usr/share/keyrings/grafana.key] https://apt.grafana.com stable main
+      state: present
+
+  - name: grafana install
+    apt:
+      name: grafana
+      update_cache: yes
+      state: present
+
+  - name: grafana config
+    template:
+      src: tempaltes/grafana.ini.j2
+      dest: /usr/local/etc/grafana/grafana.ini
+    notify:
+      - restart grafana server
+
+  - name: grafana start/enable
+    systemd:
+      state: started
+      name: grafana-server
+      enabled: true
+      
