@@ -22,12 +22,23 @@
       update_cache: yes
       state: present
 
+  - name: grafana directory
+    file:
+      path: "{{ item }}"
+      state: directory
+    with_items:
+      - "/usr"
+      - "/usr/local"
+      - "/usr/local/etc"
+      - "/usr/local/etc/grafana"
+
+
   - name: grafana config
     template:
       src: templates/grafana.ini.j2
       dest: /usr/local/etc/grafana/grafana.ini
     notify:
-      - restart grafana server
+      - restart grafana service
 
   - name: grafana start/enable
     systemd:
