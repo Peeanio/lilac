@@ -6,6 +6,7 @@
         - unzip 
         - build-essential 
         - libsnmp-dev
+        - git
         
   - name: snmp generator download
     git:
