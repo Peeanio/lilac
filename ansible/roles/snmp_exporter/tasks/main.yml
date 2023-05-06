@@ -32,5 +32,5 @@
     
   - name: start snmp exporter and enable
     systemd:
-      name: snmp-exporter
+      name: prometheus-snmp-exporter
       enabled: true
