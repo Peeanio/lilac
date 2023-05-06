@@ -11,10 +11,13 @@
   - name: snmp generator download
     git:
       repo: https://github.com/prometheus/snmp_exporter.git
+      dest: /home/prometheus/snmp_exporter
     register: git
       
   - name: make mibs
     shell: "make generator mibs"
+    args:
+      chdir: /home/prometheus/snmp_exporter
     when: git.changed is true
     register: make
   
