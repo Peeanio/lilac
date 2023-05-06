@@ -7,7 +7,8 @@
         - build-essential 
         - libsnmp-dev
         - git
-        - golang
+  
+  - name: golang install for snmp generator
 
   - name: snmp generator download
     git:
@@ -15,21 +16,17 @@
       dest: /home/prometheus/snmp_exporter
     register: git
       
+  - name: generator.yml template
+      
   - name: make mibs
     shell: "make generator mibs"
     args:
-      chdir: /home/prometheus/snmp_exporter
+      chdir: /home/prometheus/snmp_exporter/generator
     when: git.changed is true
     register: make
   
-  - name: snmp exporter config
-    template:
-      src: templates/snmp.yml.j2
-      dest: /etc/prometheus/snmp.yml.managed
-      owner: prometheus
-      group: prometheus
-      mode: '0644'
-    
+  - name: copy generated config to running server
+
   - name: start snmp exporter and enable
     systemd:
       name: prometheus-snmp-exporter
