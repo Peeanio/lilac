@@ -1,0 +1,44 @@
+---
+   - name: install prereqs
+     apt:
+       state: latest
+       pkg:
+       - ca-certificates
+       - apt-transport-https
+       - gnupg2
+       - software-properties-common
+       - curl
+  
+   - name: create keyring dir
+     file:
+       path: /etc/apt/keyrings
+       state: directory
+       mode: '07555'
+
+   - name: add key
+     get_url:
+       url: https://download.docker.com/linux/debian/gpg
+       dest: /etc/apt/keyrings
+       mode: '0744'
+     register: add_key
+
+   - name: dearmor key
+     shell: gpg -o /etc/apt/keyrings/docker.gpg --dearmor /etc/apt/keyrings/gpg
+     when: add_key is changed
+
+   - name: create repo file
+     apt_repository:
+       repo: deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian bullseye stable
+       state: present
+       filename: docker
+
+   - name: install docker
+     apt:
+         state: latest
+         pkg:
+           - docker-ce
+           - docker-ce-cli
+           - containerd.io
+           - docker-buildx-plugin 
+           - docker-compose-plugin
+           - docker-compose

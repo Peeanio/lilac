@@ -1,0 +1,83 @@
+---
+   - name: install prereqs
+     apt:
+      pkg:
+       - gpg
+       - unzip
+
+   - name: create keyring dir
+     file:
+       path: /etc/apt/keyrings
+       state: directory
+       mode: '0755'
+
+   - name: add key
+     get_url:
+       url: https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+       dest: /etc/apt/keyrings
+       mode: '0744'
+     register: add_key
+
+   - name: dearmor key
+     shell: gpg -o /etc/apt/keyrings/nodesource.gpg --dearmor /etc/apt/keyrings/nodesource.gpg.key
+     when: add_key is changed
+
+   - name: create repo file
+     apt_repository:
+       repo: deb [arch=amd64 signed-by=/etc/apt/keyrings/nodesource.gpg]  https://deb.nodesource.com/{{ node_version }} bullseye main
+       state: present
+       filename: nodesource
+
+   - name: install packages
+     apt:
+       pkg:
+         - nodejs
+         - haproxy
+
+   - name: foundry group
+     group: 
+       name: foundry
+       state: present
+
+   - name: foundry user
+     user:
+       name: foundry
+       group: foundry
+       state: present
+       create_home: true
+       shell: /bin/bash
+
+   - name: create directories
+     file:
+       path: /home/foundry/{{ item }}
+       state: directory
+       owner: foundry
+       group: foundry
+       recurse: true
+     with_items:
+       - foundryvtt
+       - foundrydata
+
+   - name: unarchive source to machine
+     unarchive:
+      src: files/foundry.zip
+      dest: /home/foundry/foundryvtt
+      owner: foundry
+      group: foundry
+
+   - name: service template
+     template:
+       src: templates/foundry.service.j2
+       dest: /etc/systemd/system/foundry.service
+     register: service_template
+ 
+   - name: daemon_reload
+     systemd:
+       daemon_reload: true
+     when: service_template is changed
+
+   - name: start and enable service
+     systemd:
+       state: started
+       enabled: true
+       name: foundry

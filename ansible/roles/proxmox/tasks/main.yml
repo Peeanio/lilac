@@ -1,5 +1,4 @@
----
-  tasks:
+---  
   - name: remove enterprise repo
     apt_repository:
         repo: "deb https://enterprise.proxmox.com/debian/pve {{ ansible_distribution_release }} pve-enterprise"
