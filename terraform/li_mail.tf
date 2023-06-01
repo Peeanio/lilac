@@ -1,8 +1,7 @@
 terraform {
   required_providers {
-    digitalocean = {
-      source = "digitalocean/digitalocean"
-      version = "~> 2.0"
+    linode = {
+      source = "linode/linode"
     }
     remote = {
       source = "tenstad/remote"
@@ -10,65 +9,56 @@ terraform {
   }
 }
 
-provider "digitalocean" {
-  token = var.do_token
+provider "linode" {
+  token = var.li_token
 }
 provider "remote" {}
 
-variable "do_size" {}
-variable "do_token" {}
-variable "do_region" {}
-variable "do_subnet" {}
-variable "do_image" {}
-variable "do_ed25519_private" {}
-variable "do_domain" {}
-variable "do_subdom" {}
-variable "do_maildomain" {}
-variable "do_user" {}
-#variable "do_user_data" {}
-#variable "do_ansible_exec" {}
+variable "li_size" {}
+variable "li_token" {}
+variable "li_region" {}
+variable "li_subnet" {}
+variable "li_image" {}
+variable "li_ed25519_private" {}
+variable "li_domain" {}
+variable "li_subdom" {}
+variable "li_maildomain" {}
+variable "li_user" {}
+#variable "li_user_data" {}
+#variable "li_ansible_exec" {}
 
-data "digitalocean_ssh_key" "do_ed25519" {
-  name = "do_ed25519"
+data "linode_sshkey" "li_ed25519" {
+  label = "li_ed25519"
 }
 
 data "template_file" "cloud-init-yaml" {
   template = file("${path.module}/files/user_data.yml")
   vars = {
-    init_ssh_public_key = data.digitalocean_ssh_key.do_ed25519.public_key
+    init_ssh_public_key = data.digitalocean_ssh_key.li_ed25519.public_key
   }
 }
 
-resource "digitalocean_reserved_ip" "domain_mail_ip" {
-  region = var.do_region
-}
-
-resource "digitalocean_reserved_ip_assignment" "domain_mail_ip_assignment" {
-  droplet_id = digitalocean_droplet.domain_mail_droplet.id
-  ip_address = digitalocean_reserved_ip.domain_mail_ip.ip_address
-}
-
-resource "digitalocean_project" "domain_project" {
-  name = var.do_domain
-  description = "Container project for the ${var.do_domain} domain"
+resource "linode_instance_ip" "domain_mail_ip" {
+  linode_id = linode_instance.domain_mail_instance.id
+  public = true
 }
 
 resource "digitalocean_domain" "root_domain" {
-  depends_on = [digitalocean_project.domain_project]
-  name = var.do_domain
+  domain = var.li_domain
+  type = "master"
 }
 
 resource "digitalocean_record" "domain_mail_a" {
-  domain = digitalocean_domain.root_domain.id
-  type = "A"
-  name = var.do_subdom
-  value = digitalocean_reserved_ip.domain_mail_ip.ip_address
+  domain_id = digitalocean_domain.root_domain.id
+  record_type = "A"
+  name = var.li_subdom
+  target = digitalocean_reserved_ip.domain_mail_ip.ip_address
 }
 
 resource "digitalocean_vpc" "domain_vpc" {
-  name = "${var.do_domain}-vpc"
-  region = var.do_region
-  ip_range = var.do_subnet
+  name = "${var.li_domain}-vpc"
+  region = var.li_region
+  ip_range = var.li_subnet
 }
 
 resource "digitalocean_firewall" "mail_fw" {
@@ -143,17 +133,17 @@ resource "digitalocean_firewall" "mail_fw" {
 
 resource "digitalocean_droplet" "domain_mail_droplet" {
   depends_on = [digitalocean_record.domain_mail_a]
-  image = var.do_image
-  name = var.do_maildomain
-  region = var.do_region
-  size = var.do_size
-  ssh_keys = [data.digitalocean_ssh_key.do_ed25519.id]
+  image = var.li_image
+  name = var.li_maildomain
+  region = var.li_region
+  size = var.li_size
+  ssh_keys = [data.digitalocean_ssh_key.li_ed25519.id]
   vpc_uuid = digitalocean_vpc.domain_vpc.id
 
   user_data = data.template_file.cloud-init-yaml.rendered
 
 #  provisioner "local-exec" {
-#    command = "sleep 10; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ${var.do_user} -i '${self.ipv4_address},' --private-key ${var.do_ed25519_private} --tags 'common, mail' -e 'domain=${var.do_domain}' -e 'subdom=${var.do_subdom}' -e 'maildomain=${var.do_maildomain}' ../ansible/site2.yml"
+#    command = "sleep 10; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ${var.li_user} -i '${self.ipv4_address},' --private-key ${var.li_ed25519_private} --tags 'common, mail' -e 'domain=${var.li_domain}' -e 'subdom=${var.li_subdom}' -e 'maildomain=${var.li_maildomain}' ../ansible/site2.yml"
 #  }
 }
 
@@ -165,7 +155,7 @@ resource "terraform_data" "ansible_mail" {
     #digitalocean_record.domain_caa
   ]
   provisioner "local-exec" {
-    command = "sleep 10; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ${var.do_user} -i '${digitalocean_reserved_ip.domain_mail_ip.ip_address},' --private-key ${var.do_ed25519_private} --tags 'common, mail' -e 'domain=${var.do_domain}' -e 'subdom=${var.do_subdom}' -e 'maildomain=${var.do_maildomain}' ../ansible/site2.yml"
+    command = "sleep 10; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ${var.li_user} -i '${digitalocean_reserved_ip.domain_mail_ip.ip_address},' --private-key ${var.li_ed25519_private} --tags 'common, mail' -e 'domain=${var.li_domain}' -e 'subdom=${var.li_subdom}' -e 'maildomain=${var.li_maildomain}' ../ansible/site2.yml"
   }
 }
 
@@ -173,24 +163,24 @@ data "remote_file" "dkim_pub_key" {
   depends_on = [terraform_data.ansible_mail]
   conn {
     host = digitalocean_reserved_ip.domain_mail_ip.ip_address
-    user = var.do_user
+    user = var.li_user
     sudo = true
     agent = true
   }
-  path = "/etc/postfix/dkim/${var.do_subdom}_pub.txt"
+  path = "/etc/postfix/dkim/${var.li_subdom}_pub.txt"
 }
 
 resource "digitalocean_record" "domain_dmarc" {
   domain = digitalocean_domain.root_domain.id
   type = "TXT" 
-  name = "_dmarc.${var.do_subdom}"
-  value = "v=DMARC1; p=reject; rua=mailto:dmarc@${var.do_domain}; fo=1"
+  name = "_dmarc.${var.li_subdom}"
+  value = "v=DMARC1; p=reject; rua=mailto:dmarc@${var.li_domain}; fo=1"
 }
 
 resource "digitalocean_record" "domain_dkim" {
   domain = digitalocean_domain.root_domain.id
   type = "TXT" 
-  name = "${var.do_subdom}._domainkey"
+  name = "${var.li_subdom}._domainkey"
   value = "v=DKIM1; k=rsa; ${trimspace(data.remote_file.dkim_pub_key.content)}"
 }
 
@@ -198,14 +188,14 @@ resource "digitalocean_record" "domain_spf" {
   domain = digitalocean_domain.root_domain.id
   type = "TXT"
   name = "@"
-  value = "v=spf1 mx a:${var.do_maildomain} -all"
+  value = "v=spf1 mx a:${var.li_maildomain} -all"
 }
 
 resource "digitalocean_record" "domain_mx" {
   domain = digitalocean_domain.root_domain.id
   type = "MX"
   name = "@"
-  value = "${var.do_maildomain}."
+  value = "${var.li_maildomain}."
   priority = 10
 }
 
