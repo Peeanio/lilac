@@ -4,6 +4,9 @@
       pkg:
        - gpg
        - unzip
+       - ufw 
+       - haproxy
+       - certbot
 
    - name: create keyring dir
      file:
@@ -32,7 +35,6 @@
      apt:
        pkg:
          - nodejs
-         - haproxy
 
    - name: foundry group
      group: 
@@ -57,6 +59,21 @@
      with_items:
        - foundryvtt
        - foundrydata
+       - foundrydata/Config
+
+   - name: license template
+     template:
+       src: templates/license.json.j2
+       dest: /home/foundry/foundrydata/Config/license.json
+       owner: foundry
+       group: foundry
+
+   - name: options template
+     template:
+       src: templates/options.json.j2
+       dest: /home/foundry/foundrydata/Config/options.json
+       owner: foundry
+       group: foundry
 
    - name: unarchive source to machine
      unarchive:
@@ -81,3 +98,24 @@
        state: started
        enabled: true
        name: foundry
+
+   - name: haproxy config
+     template: 
+       src: templates/haproxy.cfg.j2
+       dest: /usr/local/etc/haproxy/haproxy.cnf
+
+   - name: haproxy started
+     systemd:
+       name: haproxy
+       enabled: true
+       state: started
+
+   - name: ufw allow ingress http
+     ufw: 
+       rule: allow
+       to_port: 80
+
+   - name: ufw allow ingress https
+     ufw:
+       rule: allow
+       to_port: 443

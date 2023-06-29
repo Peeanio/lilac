@@ -3,7 +3,6 @@ Description=foundry server
 After=network.target
 
 [Service]
-Type=forking
 User=foundry
 WorkingDirectory=/home/foundry/foundryvtt
 ExecStart=node resources/app/main.js --dataPath=/home/foundry/foundrydata
