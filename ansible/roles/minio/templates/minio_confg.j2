@@ -1,0 +1,10 @@
+{% if (minio_root_user is defined) and if (minio_root_password is defined) %}
+  MINIO_ROOT_USER={{ minio_root_user }}
+  MINIO_ROOT_PASSWORD={{ minio_root_password }}
+{% endif %}
+
+MINIO_VOLUMES="{{ minio_disks|join(' ', attribute='mount_point')}}"
+
+{% if minio_server_url is defined %}
+  MINIO_SERVER_URL="{{ minio_server_url }}"
+{% endif %}

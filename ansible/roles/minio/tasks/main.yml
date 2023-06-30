@@ -1,0 +1,95 @@
+---
+  - name: install prereqs
+    apt:
+      pkg:
+        - xz-utils
+        - parted
+
+  - name: minio group
+    group:
+      name: minio
+      state: present
+
+  - name: minio user
+    user:
+      name: minio
+      group: minio
+      state: present
+      create_home: true
+      shell: /usr/bin/nologin
+
+  - name: get binary file latest
+    get_url:
+      url: https://dl.min.io/server/minio/release/linux-amd64/archive/minio
+      dest: /home/minio/minio-latest
+    register: downloaded
+
+  - name: copy binary to path
+    copy:
+      src: /home/minio/minio-latest
+      dest: /usr/local/bin/minio
+      owner: minio
+      group: minio
+      remote_src: true
+      mode: '0744'
+    register: binary_changed
+
+  - name: minio service template
+    template:
+      src: templates/minio.service.j2
+      dest: /etc/systemd/system/minio.service
+      owner: root
+      group: root
+    register: service_changed
+
+  - name: partition disks
+    parted:
+      device: "{{ item.disk }}"
+      number: 1
+      state: present
+      fs_type: ext4
+    loop: "{{ minio_disks }}"
+
+  - name: mount points
+    file:
+      path: "{{ item.mount_point }}"
+      owner: minio
+      group: minio
+      state: directory
+      recurse: true
+    loop: "{{ minio_disks }}"
+
+  - name: mount partition
+    ansible.posix.mount:
+      path: "{{ item.mount_point }}"
+      src: "{{ item.partition }}"
+      state: present
+      opts: rw
+      fstype: ext4
+    loop: "{{ minio_disks }}"
+
+  - name: config template
+    template:
+      src: templates/minio_confg.j2
+      dest: /etc/default/minio
+      owner: minio
+      group: minio
+      mode: '0640'
+    register: config_changed
+
+  - name: systemd reload if service changed
+    systemd:
+      daemon_reload: true
+    when: service_changed.changed
+
+  - name: start/enable service
+    systemd:
+      name: minio
+      state: started
+      enabled: true
+
+  - name: restart if needed
+    systemd:
+      name: minio
+      state: restarted
+    when: binary_changed.changed or config_changed.changed
