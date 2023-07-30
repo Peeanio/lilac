@@ -1,0 +1,15 @@
+[Unit]
+Description=unciv server
+After=network.target
+
+[Service]
+Type=forking
+User=unciv
+WorkingDirectory=/home/unciv
+ExecStart=/usr/bin/screen -dmS unciv java -jar /home/unciv/UncivServer.jar -p {{ unciv_server_port }} -f /home/unciv
+ExecStop=/usr/bin/screen -S unciv -X eval 'stuff "^C\015"'
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+Alias=unciv-server.service

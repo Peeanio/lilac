@@ -1,0 +1,4 @@
+---
+  unciv_server_port: "6969"
+  unciv_version: "4.7.11"
+  openjdk_package: "openjdk-17-jdk-headless"

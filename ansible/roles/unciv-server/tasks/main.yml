@@ -1,0 +1,58 @@
+---
+   - name: wait for dpkg lock
+     shell: while sudo fuser /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 5; done;
+
+   - name: wait dpkg frontend lock
+     shell: while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done;
+
+   - name: wait for apt lock
+     shell: while sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 5; done;
+
+   - name: packages
+     apt: 
+       pkg:
+         - git
+         - screen
+         - ca-certificates-java
+         - "{{ openjdk_package }}"
+         - ufw
+       state: latest
+       update_cache: true
+  
+   - name: unciv group
+     group:
+       name: unciv
+       state: present
+
+   - name: unciv user
+     user:
+       name: unciv
+       group: unciv
+       state: present
+       create_home: true
+       shell: /sbin/nologin
+
+   - name: get server binary
+     get_url:
+       url: "https://github.com/yairm210/Unciv/releases/download/{{ unciv_version }}/UncivServer.jar"
+       dest: /home/unciv/UncivServer.jar
+       
+   - name: service templates
+     template:
+       src: templates/unciv-server.service.j2
+       dest: /lib/systemd/system/unciv-server.service
+       owner: root
+     notify:
+     - restart unciv service
+
+   - name: unciv service
+     systemd:
+       name: unciv-server
+       state: started
+       enabled: true
+       daemon_reload: true
+     
+   - name: ufw port 
+     ufw:
+      to_port: "{{ unciv_server_port }}"
+      rule: allow 

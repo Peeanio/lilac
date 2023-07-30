@@ -1,0 +1,5 @@
+---
+  - name: restart unciv service
+    systemd:
+     name: unciv-server
+     state: restarted
