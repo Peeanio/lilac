@@ -1,0 +1,13 @@
+non_free_repos:
+  - deb http://deb.debian.org/debian bookworm main contrib non-free
+  - deb-src http://deb.debian.org/debian bookworm main contrib non-free
+  - deb http://deb.debian.org/debian-security/ bookworm-security main contrib non-free
+  - deb-src http://deb.debian.org/debian-security/ bookworm-security main contrib non-free
+  - deb http://deb.debian.org/debian bookworm-updates main contrib non-free
+  - deb-src http://deb.debian.org/debian bookworm-updates main contrib non-free
+valheim_ports:
+  - "2456"
+  - "2457"
+server_name: "Valheim"
+world_name: "server"
+server_password: "xxxxx"

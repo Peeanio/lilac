@@ -1,0 +1,15 @@
+[Unit]
+Description=valheim server
+After=network.target
+
+[Service]
+Type=simple
+User=steam
+WorkingDirectory=/home/steam
+ExecStart="/home/steam/Steam/steamapps/common/Valheim dedicated server/start_script.sh"
+Restart=on-failure
+RestartSec=20
+
+[Install]
+WantedBy=multi-user.target
+Alias=valheim.service
