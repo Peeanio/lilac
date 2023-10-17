@@ -1,0 +1,49 @@
+---
+   - name: install prereqs
+     ansible.builtin.apt:
+      pkg:
+        - git 
+        - g++ 
+        - wget 
+        - build-essential
+
+   - name: create user group
+     group:
+       name: 'llama'
+       state: present
+
+   - name: create user
+     user:
+       name: llama
+       group: llama
+       state: present
+       create_home: true
+       shell: /bin/bash
+
+   - name: clone llama
+     git:
+       repo: https://github.com/ggerganov/llama.cpp.git
+       dest: /home/llama/llama.cpp
+     register: git_cloned
+
+   - name: set permissions
+     file:
+       path: /home/llama/llama.cpp
+       owner: llama
+       group: llama
+       state: directory
+       recurse: yes
+
+   - name: make llama
+     command: 'make -j'
+     args:
+       chdir: "/home/llama/llama.cpp"
+     become_user: 'llama'
+     when: git_cloned.changed
+
+   - name: install model
+     get_url:
+       url: 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q4_K_S.gguf'
+       dest: "/home/llama/llama.cpp/models/llama-2-7b-chat.Q4_K_S.gguf"
+       owner: llama
+       group: llama
