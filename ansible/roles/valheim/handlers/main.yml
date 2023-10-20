@@ -1,0 +1,6 @@
+---
+     - name: restart valheim service
+       systemd:
+         name: valheim
+         state: restarted
+

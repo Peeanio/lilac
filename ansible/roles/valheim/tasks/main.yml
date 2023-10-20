@@ -47,6 +47,8 @@
     command: /usr/games/steamcmd +login anonymous +app_update 896660 +quit
     become: yes
     become_user: steam
+    notify: 
+      - restart valheim service
 
   - name: for steamclient library
     file:
@@ -69,6 +71,8 @@
       owner: steam
       group: steam
       mode: '0700'
+    notify:
+      - restart valheim service
 
   - name: valheim service file
     template:
@@ -76,6 +80,8 @@
       dest: /etc/systemd/system/valheim.service
       owner: root
       group: root
+    notify:
+      - restart valheim service
 
   - name: valheim service
     systemd:
