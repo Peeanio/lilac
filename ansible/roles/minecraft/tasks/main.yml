@@ -7,17 +7,19 @@
        - ufw  
        - screen
        - openjdk-17-jdk-headless
-       - python3-pip
+       # - python3-pip
+       - python3-bs4
+       - python3-requests
        state: present
        state: latest
        update_cache: yes
 
-   - name: pip dependencies
-     pip:
-       name:
-         - requests
-         - bs4
-       state: present
+   # - name: pip dependencies
+   #   pip:
+   #     name:
+   #       - requests
+   #       - bs4
+   #     state: present
 
    - name: get download url
      command: /usr/bin/python3
