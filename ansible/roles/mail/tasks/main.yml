@@ -33,7 +33,7 @@
 
    - name: verify the lets encrypt certificate
      community.crypto.x509_certificate_info:
-       path: "/etc/letsencrypt/archive/{{ maildomain }}/cert1.pem"
+       path: "/etc/letsencrypt/live/{{ maildomain }}/cert.pem"
      ignore_errors: true
      register: ssl_check
 
@@ -170,7 +170,7 @@
        state: started
        enabled: true
      with_items:
-       - spamassassin
+       - spamd
        - opendkim
        - dovecot
        - postfix

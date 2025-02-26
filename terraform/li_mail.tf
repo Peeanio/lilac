@@ -6,219 +6,278 @@ terraform {
     remote = {
       source = "tenstad/remote"
     }
+   digitalocean = {
+     source = "digitalocean/digitalocean"
+   }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+    }
   }
 }
 
 provider "linode" {
   token = var.li_token
 }
+provider "digitalocean" {
+  token = var.do_token
+}
+provider "cloudflare" {
+  api_token = var.cf_token
+}
 provider "remote" {}
-
+variable "do_token" {}
 variable "li_size" {}
 variable "li_token" {}
 variable "li_region" {}
-variable "li_subnet" {}
+# variable "li_subnet" {}
 variable "li_image" {}
 variable "li_ed25519_private" {}
 variable "li_domain" {}
 variable "li_subdom" {}
 variable "li_maildomain" {}
 variable "li_user" {}
+variable "cf_zone_id" {}
+variable "cf_token" {}
 #variable "li_user_data" {}
 #variable "li_ansible_exec" {}
 
-data "linode_sshkey" "li_ed25519" {
+resource "linode_sshkey" "li_ed25519" {
   label = "li_ed25519"
+  ssh_key = chomp(file("~/.ssh/li_ed25519.pub"))
 }
 
 data "template_file" "cloud-init-yaml" {
   template = file("${path.module}/files/user_data.yml")
   vars = {
-    init_ssh_public_key = data.digitalocean_ssh_key.li_ed25519.public_key
+    init_ssh_public_key = linode_sshkey.li_ed25519.ssh_key
   }
 }
 
-resource "linode_instance_ip" "domain_mail_ip" {
-  linode_id = linode_instance.domain_mail_instance.id
-  public = true
-}
+# resource "linode_instance_ip" "domain_mail_ip" {
+#   linode_id = linode_instance.domain_mail_instance.id
+#   public = true
+# }
 
 resource "digitalocean_domain" "root_domain" {
-  domain = var.li_domain
-  type = "master"
+  name = var.li_domain
 }
 
-resource "digitalocean_record" "domain_mail_a" {
-  domain_id = digitalocean_domain.root_domain.id
-  record_type = "A"
+resource "cloudflare_dns_record" "domain_mail_a" {
+  zone_id = var.cf_zone_id
+  type = "A"
   name = var.li_subdom
-  target = digitalocean_reserved_ip.domain_mail_ip.ip_address
+  ttl = 3600
+  content = linode_instance.domain_mail_instance.ip_address
 }
 
-resource "digitalocean_vpc" "domain_vpc" {
-  name = "${var.li_domain}-vpc"
-  region = var.li_region
-  ip_range = var.li_subnet
-}
+# resource "linode_vpc" "domain_vpc" {
+#   label = "${var.li_domain}-vpc"
+#   region = var.li_region
+# }
+#
+# resource "linode_vpc_subnet" "domain_vpc_subnet" {
+#   label = "${var.li_domain}-vpc-subnet"
+#   vpc_id = linode_vpc.domain_vpc.id
+#   ipv4 = var.li_subnet
+# }
 
-resource "digitalocean_firewall" "mail_fw" {
-  name = "mail-fw"
-  droplet_ids = [digitalocean_droplet.domain_mail_droplet.id]
+resource "linode_firewall" "mail_fw" {
+  label = "mail-fw"
+  linodes = [linode_instance.domain_mail_instance.id]
+  inbound_policy = "DROP"
+  outbound_policy = "ACCEPT"
 
-  inbound_rule {
-    protocol = "tcp"
-    port_range = "22"
-    source_addresses = ["0.0.0.0/0", "::/0"]
+  inbound {
+    protocol = "TCP"
+    label = "Allow_SSH"
+    action = "ACCEPT"
+    ports = "22"
+    ipv4 = ["0.0.0.0/0"]
+    ipv6 = [ "::/0"]
   }
 
-  inbound_rule {
-    protocol = "tcp"
-    port_range = "25"
-    source_addresses = ["0.0.0.0/0", "::/0"]
+  inbound {
+    protocol = "TCP"
+    ports = "25"
+    label = "Allow_SMTP"
+    action = "ACCEPT"
+    ipv4 = ["0.0.0.0/0"]
+    ipv6 = [ "::/0"]
   }
  
-  inbound_rule {
-    protocol = "tcp"
-    port_range = "80"
-    source_addresses = ["0.0.0.0/0", "::/0"]
+  inbound {
+    protocol = "TCP"
+    label = "Allow_WEB"
+    action = "ACCEPT"
+    ports = "80"
+    ipv4 = ["0.0.0.0/0"]
+    ipv6 = [ "::/0"]
   }
  
-  inbound_rule {
-    protocol = "tcp"
-    port_range = "143"
-    source_addresses = ["0.0.0.0/0", "::/0"]
+  inbound {
+    protocol = "TCP"
+    label = "Allow_IMAP"
+    action = "ACCEPT"
+    ports = "143"
+    ipv4 = ["0.0.0.0/0"]
+    ipv6 = [ "::/0"]
   }
 
-  inbound_rule {
-    protocol = "tcp"
-    port_range = "465"
-    source_addresses = ["0.0.0.0/0", "::/0"]
+  inbound {
+    protocol = "TCP"
+    label = "Allow_SMTPs"
+    action = "ACCEPT"
+    ports = "465"
+    ipv4 = ["0.0.0.0/0"]
+    ipv6 = [ "::/0"]
   }
 
-  inbound_rule {
-    protocol = "tcp"
-    port_range = "587"
-    source_addresses = ["0.0.0.0/0", "::/0"]
+  inbound {
+    protocol = "TCP"
+    label = "Allow_SMTP_with-TLS"
+    action = "ACCEPT"
+    ports = "587"
+    ipv4 = ["0.0.0.0/0"]
+    ipv6 = [ "::/0"]
   }
 
-  inbound_rule {
-    protocol = "tcp"
-    port_range = "783"
-    source_addresses = ["0.0.0.0/0", "::/0"]
+  inbound {
+    protocol = "TCP"
+    label = "Allow_Spamassasin"
+    action = "ACCEPT"
+    ports = "783"
+    ipv4 = ["0.0.0.0/0"]
+    ipv6 = [ "::/0"]
   }
 
-  inbound_rule {
-    protocol = "tcp"
-    port_range = "993"
-    source_addresses = ["0.0.0.0/0", "::/0"]
+  inbound {
+    protocol = "TCP"
+    label = "Allow_IMAPs"
+    action = "ACCEPT"
+    ports = "993"
+    ipv4 = ["0.0.0.0/0"]
+    ipv6 = ["::/0"]
   }
 
-  outbound_rule {
-    protocol = "tcp"
-    port_range = "1-65535"
-    destination_addresses = ["0.0.0.0/0", "::/0"]
+  outbound {
+    protocol = "TCP"
+    label = "Allow_all_outgoing"
+    action = "ACCEPT"
+    ports = "1-65535"
+    ipv4 = ["0.0.0.0/0"]
+    ipv6 = [ "::/0"]
   }
   
-  outbound_rule {
-    protocol = "udp"
-    port_range = "53"
-    destination_addresses = ["0.0.0.0/0", "::/0"]
+  outbound {
+    protocol = "UDP"
+    label = "Allow_DNS_out"
+    action = "ACCEPT"
+    ports = "53"
+    ipv4 = ["0.0.0.0/0"]
+    ipv6 = [ "::/0"]
   }
 
-  outbound_rule {
-    protocol = "icmp"
-    destination_addresses = ["0.0.0.0/0", "::/0"]
+  outbound {
+    protocol = "ICMP"
+    label = "Allow_ICMP"
+    action = "ACCEPT"
+    ipv4 = ["0.0.0.0/0"]
+    ipv6 = [ "::/0"]
   }
 }
 
-resource "digitalocean_droplet" "domain_mail_droplet" {
-  depends_on = [digitalocean_record.domain_mail_a]
+resource "linode_instance" "domain_mail_instance" {
+#   depends_on = [digitalocean_record.domain_mail_a]
   image = var.li_image
-  name = var.li_maildomain
+  label = var.li_maildomain
   region = var.li_region
-  size = var.li_size
-  ssh_keys = [data.digitalocean_ssh_key.li_ed25519.id]
-  vpc_uuid = digitalocean_vpc.domain_vpc.id
+  type = var.li_size
+  authorized_keys = [linode_sshkey.li_ed25519.ssh_key]
+  
+#   interface {
+#     purpose = "vpc"
+#     subnet_id = linode_vpc_subnet.domain_vpc_subnet.id
+#   }
 
-  user_data = data.template_file.cloud-init-yaml.rendered
+  #metadata.0.user_data = data.template_file.cloud-init-yaml.rendered
 
 #  provisioner "local-exec" {
 #    command = "sleep 10; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ${var.li_user} -i '${self.ipv4_address},' --private-key ${var.li_ed25519_private} --tags 'common, mail' -e 'domain=${var.li_domain}' -e 'subdom=${var.li_subdom}' -e 'maildomain=${var.li_maildomain}' ../ansible/site2.yml"
 #  }
 }
 
+resource "linode_rdns" "domain_mail_rdns" {
+  address = linode_instance.domain_mail_instance.ip_address
+  rdns = var.li_maildomain
+}
+
 resource "terraform_data" "ansible_mail" {
   depends_on = [
-    digitalocean_reserved_ip_assignment.domain_mail_ip_assignment,
-    digitalocean_record.domain_mail_a,
-    digitalocean_project_resources.domain_project_resources,
+#     linode_instance_ip.domain_mail_ip,
+    cloudflare_dns_record.domain_mail_a,
     #digitalocean_record.domain_caa
   ]
   provisioner "local-exec" {
-    command = "sleep 10; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ${var.li_user} -i '${digitalocean_reserved_ip.domain_mail_ip.ip_address},' --private-key ${var.li_ed25519_private} --tags 'common, mail' -e 'domain=${var.li_domain}' -e 'subdom=${var.li_subdom}' -e 'maildomain=${var.li_maildomain}' ../ansible/site2.yml"
+    command = "sleep 15; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u root -i '${linode_instance.domain_mail_instance.ip_address},' --private-key ${var.li_ed25519_private} --tags 'common, mail' -e 'domain=${var.li_domain}' -e 'subdom=${var.li_subdom}' -e 'maildomain=${var.li_maildomain}' ../ansible/li_mail.yml"
   }
 }
 
 data "remote_file" "dkim_pub_key" {
   depends_on = [terraform_data.ansible_mail]
   conn {
-    host = digitalocean_reserved_ip.domain_mail_ip.ip_address
-    user = var.li_user
+    host = linode_instance.domain_mail_instance.ip_address
+    user = "root"
     sudo = true
     agent = true
   }
   path = "/etc/postfix/dkim/${var.li_subdom}_pub.txt"
 }
 
-resource "digitalocean_record" "domain_dmarc" {
-  domain = digitalocean_domain.root_domain.id
+resource "cloudflare_dns_record" "domain_dmarc" {
+  zone_id = var.cf_zone_id
   type = "TXT" 
   name = "_dmarc.${var.li_subdom}"
-  value = "v=DMARC1; p=reject; rua=mailto:dmarc@${var.li_domain}; fo=1"
+  ttl = 3600
+  content = "v=DMARC1; p=reject; rua=mailto:dmarc@${var.li_domain}; fo=1"
 }
 
-resource "digitalocean_record" "domain_dkim" {
-  domain = digitalocean_domain.root_domain.id
+resource "cloudflare_dns_record" "domain_dkim" {
+  zone_id = var.cf_zone_id
   type = "TXT" 
   name = "${var.li_subdom}._domainkey"
-  value = "v=DKIM1; k=rsa; ${trimspace(data.remote_file.dkim_pub_key.content)}"
+  ttl = 3600
+  content = "v=DKIM1; k=rsa; ${trimspace(data.remote_file.dkim_pub_key.content)}"
 }
 
-resource "digitalocean_record" "domain_spf" {
-  domain = digitalocean_domain.root_domain.id
+resource "cloudflare_dns_record" "domain_spf" {
+  zone_id = var.cf_zone_id
   type = "TXT"
   name = "@"
-  value = "v=spf1 mx a:${var.li_maildomain} -all"
+  ttl = 3600
+  content = "v=spf1 mx a:${var.li_maildomain} -all"
 }
 
-resource "digitalocean_record" "domain_mx" {
-  domain = digitalocean_domain.root_domain.id
+resource "cloudflare_dns_record" "domain_mx" {
+  zone_id = var.cf_zone_id
   type = "MX"
   name = "@"
-  value = "${var.li_maildomain}."
+  ttl = 3600
   priority = 10
-}
-
-resource "digitalocean_project_resources" "domain_project_resources" {
-  project = digitalocean_project.domain_project.id
-  resources = [
-   digitalocean_domain.root_domain.urn,
-   digitalocean_droplet.domain_mail_droplet.urn,
-  ] 
+  content = "${var.li_maildomain}."
 }
 
 output "mail_droplet_ip" {
-  value = digitalocean_reserved_ip.domain_mail_ip.ip_address
+  value = linode_instance.domain_mail_instance.ip_address
 }
 
 output "mail_dmarc_txt" {
-  value = digitalocean_record.domain_dmarc
+  value = cloudflare_dns_record.domain_dmarc
 }
 
 output "mail_dkim_txt" {
-  value = digitalocean_record.domain_dkim
+  value = cloudflare_dns_record.domain_dkim
 }
 
 output "mail_spf_txt" {
-  value = digitalocean_record.domain_spf
+  value = cloudflare_dns_record.domain_spf
 }
