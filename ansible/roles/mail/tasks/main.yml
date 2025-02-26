@@ -110,6 +110,11 @@
        state: directory
        group: opendkim
 
+   - name: postfix mailname
+     template:
+       src: templates/postfix_mailname.j2
+       dest: /etc/mailname
+
    - name: opendkim key check
      stat:
        path: "/etc/postfix/dkim/{{ subdom }}.private"

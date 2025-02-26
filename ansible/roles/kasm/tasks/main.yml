@@ -1,0 +1,88 @@
+---
+   - name: wait for dpkg lock
+     shell: while sudo fuser /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 5; done;
+
+   - name: wait dpkg frontend lock
+     shell: while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done;
+
+   - name: wait for apt lock
+     shell: while sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 5; done;
+
+   - name: packages
+     apt:
+       pkg:
+         - tar
+         - ufw
+         - curl
+         - python3-certbot
+       state: latest
+       update_cache: true
+
+   - name: check kasm installed
+     stat:
+       path: /opt/kasm
+     register: kasm_check
+
+   - name: Download kasm installer
+     ansible.builtin.unarchive:
+       src: https://kasm-static-content.s3.amazonaws.com/kasm_release_1.16.1.98d6fa.tar.gz
+       dest: /tmp
+       remote_src: yes
+     when: not kasm_check.stat.exists
+     register: kasm_downloaded
+
+   - name: execute installer
+     ansible.builtin.shell: /tmp/kasm_release/install.sh -e
+     args:
+       chdir: /tmp
+     when: kasm_downloaded.changed
+
+
+   - name: ufw open web
+     ufw:
+      to_port: "{{item}}"
+      rule: allow
+     with_items:
+       - "80"
+       - "443"
+
+   - name: directory for cert
+     file:
+       path: "/etc/letsencrypt/live/{{ subdom }}.{{ domain }}"
+       state: directory
+
+   - name: verify the lets encrypt certificate
+     community.crypto.x509_certificate_info:
+       path: "/etc/letsencrypt/live/{{ subdom }}.{{ domain }}/cert.pem"
+     ignore_errors: true
+     register: ssl_check
+
+   - name: get certificate
+     shell: "certbot -d {{ subdom }}.{{ domain }} certonly --standalone --preferred-challenge http --register-unsafely-without-email --agree-tos"
+     vars:
+       ansible_command_timeout: 300
+     notify:
+       - "restart kasm"
+     when: ssl_check.stat.expired is false or ssl_check.failed is true
+
+   - name: link cert to kasm cert
+     ansible.builtin.file:
+       src: "/etc/letsencrypt/live/{{ subdom }}.{{ domain }}/cert.pem"
+       dest: "/opt/kasm/current/certs/kasm_nginx.crt"
+       state: link
+       owner: kasm
+       group: kasm
+       force: true
+     notify:
+       - "restart kasm"
+
+   - name: link key to kasm key
+     ansible.builtin.file:
+       src: "/etc/letsencrypt/live/{{ subdom }}.{{ domain }}/privkey.pem"
+       dest: "/opt/kasm/current/certs/kasm_nginx.key"
+       state: link
+       owner: kasm
+       group: kasm
+       force: true
+     notify:
+       - "restart kasm"
