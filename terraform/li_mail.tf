@@ -29,7 +29,6 @@ variable "do_token" {}
 variable "li_size" {}
 variable "li_token" {}
 variable "li_region" {}
-# variable "li_subnet" {}
 variable "li_image" {}
 variable "li_ed25519_private" {}
 variable "li_domain" {}
@@ -38,8 +37,6 @@ variable "li_maildomain" {}
 variable "li_user" {}
 variable "cf_zone_id" {}
 variable "cf_token" {}
-#variable "li_user_data" {}
-#variable "li_ansible_exec" {}
 
 resource "linode_sshkey" "li_ed25519" {
   label = "li_ed25519"
@@ -53,11 +50,6 @@ data "template_file" "cloud-init-yaml" {
   }
 }
 
-# resource "linode_instance_ip" "domain_mail_ip" {
-#   linode_id = linode_instance.domain_mail_instance.id
-#   public = true
-# }
-
 resource "digitalocean_domain" "root_domain" {
   name = var.li_domain
 }
@@ -69,17 +61,6 @@ resource "cloudflare_dns_record" "domain_mail_a" {
   ttl = 3600
   content = linode_instance.domain_mail_instance.ip_address
 }
-
-# resource "linode_vpc" "domain_vpc" {
-#   label = "${var.li_domain}-vpc"
-#   region = var.li_region
-# }
-#
-# resource "linode_vpc_subnet" "domain_vpc_subnet" {
-#   label = "${var.li_domain}-vpc-subnet"
-#   vpc_id = linode_vpc.domain_vpc.id
-#   ipv4 = var.li_subnet
-# }
 
 resource "linode_firewall" "mail_fw" {
   label = "mail-fw"
@@ -187,23 +168,12 @@ resource "linode_firewall" "mail_fw" {
 }
 
 resource "linode_instance" "domain_mail_instance" {
-#   depends_on = [digitalocean_record.domain_mail_a]
   image = var.li_image
   label = var.li_maildomain
   region = var.li_region
   type = var.li_size
   authorized_keys = [linode_sshkey.li_ed25519.ssh_key]
   
-#   interface {
-#     purpose = "vpc"
-#     subnet_id = linode_vpc_subnet.domain_vpc_subnet.id
-#   }
-
-  #metadata.0.user_data = data.template_file.cloud-init-yaml.rendered
-
-#  provisioner "local-exec" {
-#    command = "sleep 10; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ${var.li_user} -i '${self.ipv4_address},' --private-key ${var.li_ed25519_private} --tags 'common, mail' -e 'domain=${var.li_domain}' -e 'subdom=${var.li_subdom}' -e 'maildomain=${var.li_maildomain}' ../ansible/site2.yml"
-#  }
 }
 
 resource "linode_rdns" "domain_mail_rdns" {
@@ -213,9 +183,7 @@ resource "linode_rdns" "domain_mail_rdns" {
 
 resource "terraform_data" "ansible_mail" {
   depends_on = [
-#     linode_instance_ip.domain_mail_ip,
     cloudflare_dns_record.domain_mail_a,
-    #digitalocean_record.domain_caa
   ]
   provisioner "local-exec" {
     command = "sleep 15; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u root -i '${linode_instance.domain_mail_instance.ip_address},' --private-key ${var.li_ed25519_private} --tags 'common, mail' -e 'domain=${var.li_domain}' -e 'subdom=${var.li_subdom}' -e 'maildomain=${var.li_maildomain}' ../ansible/li_mail.yml"

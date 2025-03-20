@@ -30,6 +30,13 @@
      template:
        src: templates/fail2ban.ssh.conf.j2
        dest: /etc/fail2ban/jail.d/sshd.conf
+
+   - name: sshd no passwd auth
+     template:
+       src: templates/sshd_config.override.j2
+       dest: /etc/ssh/sshd_config.d/override.conf
+     notify:
+       - restart sshd
    
    - name: fail2ban service
      systemd:

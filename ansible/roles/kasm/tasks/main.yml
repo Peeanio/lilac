@@ -32,7 +32,7 @@
      register: kasm_downloaded
 
    - name: execute installer
-     ansible.builtin.shell: /tmp/kasm_release/install.sh -e
+     ansible.builtin.shell: "/tmp/kasm_release/install.sh -e --admin-password {{ kasm_admin_password }} --user-password {{ kasm_user_password }}"
      args:
        chdir: /tmp
      when: kasm_downloaded.changed

@@ -1,0 +1,48 @@
+---
+  - name: guac network
+    community.docker.docker_network:
+        name: guac_net
+
+  - name: guac-db
+    community.docker.docker_container:
+        name: guac-db
+        image: postgres
+        hostname: guac-db
+        # networks:
+        #   - name: bridge
+        env:
+          POSTGRES_USER: "guacamole"
+          POSTGRES_DB: "guacamole"
+          POSTGRES_PASSWORD: "{{ pg_pass }}"
+          PGDATA: "/var/lib/postgresql/data/pgdata"
+        volumes:
+        - "/{{ docker_vol_root }}/pg_data:/data"
+
+  - name: guacd
+    community.docker.docker_container:
+        name: guacd
+        image: guacamole/guacd
+        hostname: guacd
+        # networks:
+        #   - name: bridge
+
+  - name: guacamole
+    community.docker.docker_container:
+        name: guacamole
+        image: guacamole/guacamole
+        hostname: guacamole
+        # networks:
+        #   - name: bridge
+        published_ports:
+          - "8080:8080"
+        links:
+          - "guac-db:guac-db"
+          - "guacd:guacd"
+        env:
+            GUACD_HOSTNAME: "guacd"
+            GUACD_PORT: "4822"
+            REMOTE_IP_VALVE_ENABLED: "true"
+            POSTGRESQL_HOSTNAME: "guac-db"
+            POSTGRESQL_DATABASE: "guacamole"
+            POSTGRESQL_USER: "guacamole"
+            POSTGRESQL_PASSWORD: "{{ pg_pass }}"
