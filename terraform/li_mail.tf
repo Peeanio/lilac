@@ -6,9 +6,6 @@ terraform {
     remote = {
       source = "tenstad/remote"
     }
-   digitalocean = {
-     source = "digitalocean/digitalocean"
-   }
     cloudflare = {
       source  = "cloudflare/cloudflare"
     }
@@ -17,9 +14,6 @@ terraform {
 
 provider "linode" {
   token = var.li_token
-}
-provider "digitalocean" {
-  token = var.do_token
 }
 provider "cloudflare" {
   api_token = var.cf_token
@@ -50,9 +44,6 @@ data "template_file" "cloud-init-yaml" {
   }
 }
 
-resource "digitalocean_domain" "root_domain" {
-  name = var.li_domain
-}
 
 resource "cloudflare_dns_record" "domain_mail_a" {
   zone_id = var.cf_zone_id

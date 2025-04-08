@@ -1,1 +1,8 @@
 ansible/roles/foundry/files/foundry.zip
+terraform.tfstate*
+.terraform
+terraform.tfvars
+.terraform.lock.hcl
+__pycache__
+.*.kate-swp
+ansible/inventory*
