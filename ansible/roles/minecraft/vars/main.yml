@@ -7,3 +7,4 @@
      minecraft_cron_path: "/home/minecraft/minecraft.crontab"
      minecraft_port: "25565"
      minecraft_server_name: "minecraft"
+     minecraft_whitelist: "true"

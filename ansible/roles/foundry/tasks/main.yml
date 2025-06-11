@@ -27,7 +27,7 @@
 
    - name: create repo file
      apt_repository:
-       repo: deb [arch=amd64 signed-by=/etc/apt/keyrings/nodesource.gpg]  https://deb.nodesource.com/{{ node_version }} bullseye main
+       repo: deb [arch=amd64 signed-by=/etc/apt/keyrings/nodesource.gpg]  https://deb.nodesource.com/{{ node_version }} {{ ansible_distribution_release }} main
        state: present
        filename: nodesource
 
