@@ -24,9 +24,11 @@
          resp = requests.get(url)
          soup = BeautifulSoup(resp.text, 'html.parser')
          a = soup.find_all("a")
+         urls = []
          for u in a:
            if 'server.jar' in u.get('href'):
-             print(u.get('href'))
+             urls.append(u.get('href'))
+         print(urls[0])
      register: minecraft_url
 
    - name: minecraft group
@@ -83,6 +85,9 @@
        dest: /home/minecraft/server.properties
        owner: minecraft
        group: minecraft
+     notify:
+       - restart minecraft service message
+       - restart minecraft service
 
    - name: minecraft service template
      template:
