@@ -89,6 +89,16 @@
        - restart minecraft service message
        - restart minecraft service
 
+   - name: minecraft backup script
+     template:
+       src: templates/minecraft_backup.sh.j2
+       dest: /home/minecraft/backup.sh
+       owner: minecraft
+       mode: '0740'
+     notify:
+       - restart minecraft service message
+       - restart minecraft service
+
    - name: minecraft service template
      template:
        src: templates/minecraft.service.j2

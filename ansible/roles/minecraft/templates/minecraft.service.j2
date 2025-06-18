@@ -8,6 +8,7 @@ User=minecraft
 WorkingDirectory=/home/minecraft
 ExecStart=/usr/bin/screen -dmS minecraft java -Xms{{ minecraft_min_ram }}G -Xmx{{ minecraft_max_ram }}G -XX:+UseG1GC -server -jar /home/minecraft/minecraft_server.jar nogui
 ExecStop=/usr/bin/screen -S minecraft -X eval 'stuff "/stop\015"'
+ExecStop=/home/minecraft/backup.sh
 Restart=on-failure
 RestartSec=20
 
